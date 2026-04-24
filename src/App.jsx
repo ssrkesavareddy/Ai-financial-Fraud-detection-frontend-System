@@ -19,19 +19,36 @@ import AdminTransactions from './pages/admin/AdminTransactions';
 import AdminAnalytics from './pages/admin/AdminAnalytics';
 import AdminAuditLogs from './pages/admin/AdminAuditLogs';
 
-function PrivateRoute({ children, requiredRole }) {
-  const { user, role, loading } = useAuth();
-  if (loading) return (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg-primary)' }}>
-      <div style={{ textAlign:'center' }}>
-        <div style={{ width:48, height:48, border:'3px solid var(--border)', borderTopColor:'var(--accent-blue)', borderRadius:'50%', animation:'spin 0.7s linear infinite', margin:'0 auto 16px' }}/>
-        <p style={{ color:'var(--text-muted)', fontSize:'14px' }}>Loading Financial AI...</p>
-      </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+// Misc pages
+import HealthCheck from './pages/HealthCheck';
+import ApiDocs from './pages/ApiDocs';
+
+const Spinner = () => (
+  <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg-primary)' }}>
+    <div style={{ textAlign:'center' }}>
+      <div style={{ width:48, height:48, border:'3px solid var(--border)', borderTopColor:'var(--accent-blue)', borderRadius:'50%', animation:'spin 0.7s linear infinite', margin:'0 auto 16px' }}/>
+      <p style={{ color:'var(--text-muted)', fontSize:'14px' }}>Loading Financial AI...</p>
     </div>
-  );
-  if (!localStorage.getItem('token')) return <Navigate to="/login" replace/>;
-  if (requiredRole && role !== requiredRole) return <Navigate to={role==='admin'?'/admin':'/dashboard'} replace/>;
+    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+  </div>
+);
+
+// Smart root redirect: send logged-in users to their dashboard,
+// unauthenticated users to /login.
+function RootRedirect() {
+  const { role, loading } = useAuth();
+  if (loading) return <Spinner />;
+  const token = localStorage.getItem('token');
+  if (!token) return <Navigate to="/login" replace />;
+  return <Navigate to={role === 'admin' ? '/admin' : '/dashboard'} replace />;
+}
+
+function PrivateRoute({ children, requiredRole }) {
+  const { role, loading } = useAuth();
+  if (loading) return <Spinner />;
+  if (!localStorage.getItem('token')) return <Navigate to="/login" replace />;
+  if (requiredRole && role !== requiredRole)
+    return <Navigate to={role === 'admin' ? '/admin' : '/dashboard'} replace />;
   return <Layout>{children}</Layout>;
 }
 
@@ -41,25 +58,29 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           {/* Public */}
-          <Route path="/login" element={<Login/>}/>
-          <Route path="/register" element={<Register/>}/>
-          <Route path="/forgot-password" element={<ForgotPassword/>}/>
-          <Route path="/" element={<Navigate to="/login" replace/>}/>
+          <Route path="/login"           element={<Login />} />
+          <Route path="/register"        element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/health"          element={<HealthCheck />} />
+          <Route path="/docs"            element={<ApiDocs />} />
+
+          {/* Smart root */}
+          <Route path="/" element={<RootRedirect />} />
 
           {/* User routes */}
-          <Route path="/dashboard" element={<PrivateRoute requiredRole="user"><UserDashboard/></PrivateRoute>}/>
-          <Route path="/transactions" element={<PrivateRoute requiredRole="user"><UserTransactions/></PrivateRoute>}/>
-          <Route path="/security" element={<PrivateRoute requiredRole="user"><Security/></PrivateRoute>}/>
+          <Route path="/dashboard"    element={<PrivateRoute requiredRole="user"><UserDashboard /></PrivateRoute>} />
+          <Route path="/transactions" element={<PrivateRoute requiredRole="user"><UserTransactions /></PrivateRoute>} />
+          <Route path="/security"     element={<PrivateRoute requiredRole="user"><Security /></PrivateRoute>} />
 
           {/* Admin routes */}
-          <Route path="/admin" element={<PrivateRoute requiredRole="admin"><AdminDashboard/></PrivateRoute>}/>
-          <Route path="/admin/users" element={<PrivateRoute requiredRole="admin"><AdminUsers/></PrivateRoute>}/>
-          <Route path="/admin/transactions" element={<PrivateRoute requiredRole="admin"><AdminTransactions/></PrivateRoute>}/>
-          <Route path="/admin/analytics" element={<PrivateRoute requiredRole="admin"><AdminAnalytics/></PrivateRoute>}/>
-          <Route path="/admin/audit-logs" element={<PrivateRoute requiredRole="admin"><AdminAuditLogs/></PrivateRoute>}/>
+          <Route path="/admin"                element={<PrivateRoute requiredRole="admin"><AdminDashboard /></PrivateRoute>} />
+          <Route path="/admin/users"          element={<PrivateRoute requiredRole="admin"><AdminUsers /></PrivateRoute>} />
+          <Route path="/admin/transactions"   element={<PrivateRoute requiredRole="admin"><AdminTransactions /></PrivateRoute>} />
+          <Route path="/admin/analytics"      element={<PrivateRoute requiredRole="admin"><AdminAnalytics /></PrivateRoute>} />
+          <Route path="/admin/audit-logs"     element={<PrivateRoute requiredRole="admin"><AdminAuditLogs /></PrivateRoute>} />
 
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/login" replace/>}/>
+          {/* Catch-all — send to root which applies smart redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
